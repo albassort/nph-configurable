@@ -24,7 +24,7 @@ when defined(nimPreviewSlimSystem):
   import std/[syncio, assertions, formatfloat]
 
 const
-  IndentWidth = 2
+  IndentWidth = 1
   longIndentWid = IndentWidth * 2
   MaxLineLen = when defined(nphBookExamples): 44 else: 88
   blankAfterComplex = {nkObjectTy, nkEnumTy, nkTypeSection, nkProcDef .. nkIteratorDef}
@@ -63,6 +63,8 @@ type
     pendingNewline: bool
     fid*: FileIndex
     config*: ConfigRef
+    procStart* : bool
+    hasDocComments* : bool
 
   TSrcLen = object
     # A "fake" source generator that counts line lengths instead of outputting them
@@ -80,6 +82,8 @@ type
     fid: FileIndex
     nl: bool # When computing line length, does a "forced" newline appear
     firstLen: int # Length of first line
+    procStart* : bool
+    hasDocComments* : bool
 
   ListFlag = enum
     lfFirstSticky
@@ -334,11 +338,14 @@ proc optSpace(g: var TOutput) =
   put(g, tkSpaces, Space)
 
 proc putComment(g: var TOutput, s: string) =
-  if s.len == 0:
+  let sp = "## " & s[ 2 .. ^1].strip(trailing = false)
+  if sp.len == 0:
     return
+  if g.procStart:
+    g.hasDocComments = true
 
   optSpace(g)
-  put(g, tkComment, s)
+  put(g, tkComment, sp)
 
   # TODO no implied eol on multiline comments
   optNL(g)
@@ -1190,6 +1197,7 @@ proc gproc(g: var TOutput, n: PNode) =
   # If there is no body, we don't need to indent the parameters as much
   let flags =
     if n[bodyPos].kind != nkEmpty:
+      g.procStart = true
       {sfLongIndent}
     else:
       {}
@@ -1414,6 +1422,14 @@ proc gsub(g: var TOutput, n: PNode, flags: SubFlags, extra: int) =
         flags - {sfSkipPrefix}
       else:
         flags
+
+  if n.kind != nkCommentStmt and g.hasDocComments: 
+    addTok(g, tkSpaces, "")
+    g.hasDocComments = false
+    g.procStart = false
+  elif n.kind notin {nkPostfix,nkCommentStmt, nkIdent, nkPostfix, nkIdentDefs, nkEmpty, nkFormalParams} and g.procStart and not g.hasDocComments:
+    g.procStart = false
+    echo n.kind
 
   case n.kind # atoms:
   of nkTripleStrLit:

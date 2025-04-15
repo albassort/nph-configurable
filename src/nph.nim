@@ -1,6 +1,7 @@
-#           nph
-#        (c) Copyright 2023 Jacek Sieka
-## Opinionated source code formatter
+# nph
+# Original Copyright: 
+# Copyright 2023 Jacek Sieka
+## Configurable source code formatter
 
 import
   "."/[
@@ -13,7 +14,7 @@ import "$nim"/compiler/idents
 import std/[parseopt, strutils, os, sequtils]
 
 static:
-  doAssert NimMajor == 2 and NimMinor == 0, "nph needs a specific version of Nim"
+  doAssert NimMajor == 2
 
 const
   Version = gorge("git describe --long --dirty --always --tags")
@@ -60,14 +61,14 @@ proc makeConfigRef(): ConfigRef =
   conf
 
 proc prettyPrint(infile, outfile: string, debug, check, printTokens: bool): int =
-  let
-    conf = makeConfigRef()
-    input =
-      if infile == "-":
-        readAll(stdin)
-      else:
-        readFile(infile)
-    node = parse(input, infile, printTokens, conf)
+  let conf = makeConfigRef()
+  let input =
+    if infile == "-":
+      readAll(stdin)
+    else:
+      readFile(infile)
+
+  let node = parse(input, infile, printTokens, conf)
 
   if conf.errorCounter > 0:
     localError(
@@ -83,12 +84,13 @@ proc prettyPrint(infile, outfile: string, debug, check, printTokens: bool): int 
   if conf.errorCounter > 0:
     return ErrParseOutputFailed
 
+  echo output
   if infile != "-":
     if debug:
       # Always write file in debug mode
       writeFile(infile & ".nph.yaml", treeToYaml(nil, node) & "\n")
       if infile != outfile:
-        writeFile(outfile, output)
+        #writeFile(outfile, output)
         writeFile(
           outfile & ".nph.yaml",
           treeToYaml(nil, parse(output, outfile, printTokens, newConfigRef())) & "\n",
@@ -222,6 +224,8 @@ proc main() =
 
     createDir(dir)
     let err = prettyPrint(infile, outfile, debug, check, printTokens)
+    echo outfile
+    echo err
     case err
     of ErrCheckFailed:
       quit ErrCheckFailed

@@ -742,7 +742,7 @@ template globalAssert*(
   if not cond:
     var arg2 = "'$1' failed" % [astToStr(cond)]
     if arg.len > 0:
-      arg2.add "; " & astToStr(arg) & ": " & arg
+      arg2.add "; " & astToStr(arg) & "x: " & arg
 
     liMessage(conf, info, errGenerated, arg2, doRaise, instLoc())
 
